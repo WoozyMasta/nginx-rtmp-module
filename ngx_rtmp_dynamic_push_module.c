@@ -25,6 +25,9 @@ typedef struct {
     ngx_flag_t               required;
     ngx_flag_t               strict;
     size_t                   key_max_len;
+#if (NGX_SSL)
+    ngx_ssl_t               *ssl;        /* shared SSL ctx for rtmps:// rules */
+#endif
 } ngx_rtmp_dynamic_push_app_conf_t;
 
 
@@ -316,21 +319,53 @@ ngx_rtmp_dynamic_push_arg(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     rule->arg_name = value[1];
 
     ngx_memzero(&u, sizeof(u));
-    u.default_port = 1935;
-    u.uri_part     = 1;
-    u.url          = value[2];
+    u.uri_part = 1;
+    u.url      = value[2];
 
-    if (u.url.len < 7 ||
-        ngx_strncasecmp(u.url.data, (u_char *) "rtmp://", 7) != 0)
+    if (u.url.len >= 8 &&
+        ngx_strncasecmp(u.url.data, (u_char *) "rtmps://", 8) == 0)
     {
+#if (NGX_SSL)
+        u.default_port = 443;
+        u.url.data += 8;
+        u.url.len  -= 8;
+
+        if (dacf->ssl == NULL) {
+            dacf->ssl = ngx_pcalloc(cf->pool, sizeof(ngx_ssl_t));
+            if (dacf->ssl == NULL) {
+                return NGX_CONF_ERROR;
+            }
+            dacf->ssl->log = cf->log;
+            if (ngx_ssl_create(dacf->ssl,
+                               NGX_SSL_TLSv1_2|NGX_SSL_TLSv1_3, NULL)
+                != NGX_OK)
+            {
+                return NGX_CONF_ERROR;
+            }
+            SSL_CTX_set_verify(dacf->ssl->ctx, SSL_VERIFY_NONE, NULL);
+        }
+
+        rule->target.ssl = dacf->ssl;
+#else
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "dynamic_push: URL must start with rtmp://: \"%V\"",
-                           &value[2]);
+                           "dynamic_push: rtmps:// requires nginx built "
+                           "with SSL support: \"%V\"", &value[2]);
+        return NGX_CONF_ERROR;
+#endif
+
+    } else if (u.url.len >= 7 &&
+               ngx_strncasecmp(u.url.data, (u_char *) "rtmp://", 7) == 0)
+    {
+        u.default_port = 1935;
+        u.url.data += 7;
+        u.url.len  -= 7;
+
+    } else {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "dynamic_push: URL must start with "
+                           "rtmp:// or rtmps://: \"%V\"", &value[2]);
         return NGX_CONF_ERROR;
     }
-
-    u.url.data += 7;
-    u.url.len  -= 7;
 
     if (ngx_parse_url(cf->pool, &u) != NGX_OK) {
         if (u.err) {

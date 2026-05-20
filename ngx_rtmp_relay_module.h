@@ -29,6 +29,9 @@ typedef struct {
     void                           *tag;     /* usually module reference */
     void                           *data;    /* module-specific data */
     ngx_uint_t                      counter; /* mutable connection counter */
+#if (NGX_SSL)
+    ngx_ssl_t                      *ssl;     /* non-NULL = use TLS for push */
+#endif
 } ngx_rtmp_relay_target_t;
 
 
@@ -57,6 +60,10 @@ struct ngx_rtmp_relay_ctx_s {
     ngx_event_t                    *static_evt;
     void                           *tag;
     void                           *data;
+#if (NGX_SSL)
+    ngx_ssl_t                      *ssl;      /* non-NULL = use TLS for push */
+    u_char                         *ssl_sni;  /* null-terminated hostname for SNI */
+#endif
 };
 
 

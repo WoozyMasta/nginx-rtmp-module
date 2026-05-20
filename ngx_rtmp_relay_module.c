@@ -28,6 +28,10 @@ static ngx_int_t ngx_rtmp_relay_publish(ngx_rtmp_session_t *s,
 static ngx_rtmp_relay_ctx_t * ngx_rtmp_relay_create_connection(
        ngx_rtmp_conf_ctx_t *cctx, ngx_str_t* name,
        ngx_rtmp_relay_target_t *target);
+#if (NGX_SSL)
+static void ngx_rtmp_relay_ssl_start_handler(ngx_event_t *wev);
+static void ngx_rtmp_relay_ssl_done_handler(ngx_connection_t *c);
+#endif
 
 
 /*                _____
@@ -334,6 +338,85 @@ ngx_rtmp_relay_copy_str(ngx_pool_t *pool, ngx_str_t *dst, ngx_str_t *src)
 }
 
 
+#if (NGX_SSL)
+
+static void
+ngx_rtmp_relay_ssl_done_handler(ngx_connection_t *c)
+{
+    ngx_rtmp_session_t  *rs;
+
+    rs = c->data;
+
+    if (!c->ssl->handshaked) {
+        ngx_log_error(NGX_LOG_ERR, c->log, 0,
+                      "relay: SSL handshake with \"%V\" failed",
+                      &rs->connection->addr_text);
+        ngx_rtmp_finalize_session(rs);
+        return;
+    }
+
+    ngx_rtmp_client_handshake(rs, 1);
+}
+
+
+static void
+ngx_rtmp_relay_ssl_start_handler(ngx_event_t *wev)
+{
+    ngx_connection_t      *c;
+    ngx_rtmp_session_t    *rs;
+    ngx_rtmp_relay_ctx_t  *rctx;
+    int                    err;
+    socklen_t              len;
+
+    c    = wev->data;
+    rs   = c->data;
+    rctx = ngx_rtmp_get_module_ctx(rs, ngx_rtmp_relay_module);
+
+    if (wev->timedout) {
+        ngx_log_error(NGX_LOG_ERR, c->log, NGX_ETIMEDOUT,
+                      "relay: SSL upstream timed out");
+        ngx_rtmp_finalize_session(rs);
+        return;
+    }
+
+    err = 0;
+    len = sizeof(int);
+
+    if (getsockopt(c->fd, SOL_SOCKET, SO_ERROR, (void *) &err, &len) == -1) {
+        err = ngx_socket_errno;
+    }
+
+    if (err) {
+        (void) ngx_connection_error(c, err, "relay: connect() failed");
+        ngx_rtmp_finalize_session(rs);
+        return;
+    }
+
+    if (ngx_ssl_create_connection(rctx->ssl, c,
+                                  NGX_SSL_BUFFER|NGX_SSL_CLIENT)
+        != NGX_OK)
+    {
+        ngx_rtmp_finalize_session(rs);
+        return;
+    }
+
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (rctx->ssl_sni != NULL) {
+        (void) SSL_set_tlsext_host_name(c->ssl->connection,
+                                        (char *) rctx->ssl_sni);
+    }
+#endif
+
+    c->ssl->handler = ngx_rtmp_relay_ssl_done_handler;
+
+    if (ngx_ssl_handshake(c) != NGX_AGAIN) {
+        ngx_rtmp_relay_ssl_done_handler(c);
+    }
+}
+
+#endif /* NGX_SSL */
+
+
 static ngx_rtmp_relay_ctx_t *
 ngx_rtmp_relay_create_connection(ngx_rtmp_conf_ctx_t *cctx, ngx_str_t* name,
         ngx_rtmp_relay_target_t *target)
@@ -476,6 +559,22 @@ ngx_rtmp_relay_create_connection(ngx_rtmp_conf_ctx_t *cctx, ngx_str_t* name,
     c->pool = pool;
     c->addr_text = rctx->url;
 
+#if (NGX_SSL)
+    if (target->ssl) {
+        rctx->ssl = target->ssl;
+
+        if (target->url.host.len) {
+            rctx->ssl_sni = ngx_pnalloc(pool, target->url.host.len + 1);
+            if (rctx->ssl_sni == NULL) {
+                goto clear;
+            }
+            ngx_memcpy(rctx->ssl_sni, target->url.host.data,
+                       target->url.host.len);
+            rctx->ssl_sni[target->url.host.len] = '\0';
+        }
+    }
+#endif
+
     addr_conf = ngx_pcalloc(pool, sizeof(ngx_rtmp_addr_conf_t));
     if (addr_conf == NULL) {
         goto clear;
@@ -504,7 +603,25 @@ ngx_rtmp_relay_create_connection(ngx_rtmp_conf_ctx_t *cctx, ngx_str_t* name,
     (void) ngx_atomic_fetch_add(ngx_stat_active, 1);
 #endif
 
+#if (NGX_SSL)
+    if (target->ssl) {
+        c->write->handler = ngx_rtmp_relay_ssl_start_handler;
+        c->read->handler  = ngx_rtmp_relay_ssl_start_handler;
+
+        if (rc == NGX_OK) {
+            /* TCP connected immediately — start SSL right away */
+            ngx_rtmp_relay_ssl_start_handler(c->write);
+        }
+
+    } else {
+#endif
+
     ngx_rtmp_client_handshake(rs, 1);
+
+#if (NGX_SSL)
+    }
+#endif
+
     return rctx;
 
 clear:

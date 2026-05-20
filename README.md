@@ -343,6 +343,7 @@ nginx.conf:
                 # Map query arg names to platform RTMP base URLs
                 dynamic_push_arg yt    rtmp://a.rtmp.youtube.com/live2;
                 dynamic_push_arg tw    rtmp://live.twitch.tv/app;
+                dynamic_push_arg fb    rtmps://live-api-s.facebook.com:443/rtmp;
 
                 # Reject publish if no known platform arg is present (optional)
                 dynamic_push_required off;
@@ -356,9 +357,8 @@ nginx.conf:
         }
     }
 
-Note: Platforms using RTMPS (Facebook Live, Kick, TikTok) require TLS for
-outgoing connections, which is not supported by the push relay. Plain RTMP
-platforms listed above work out of the box.
+Note: certificate verification is disabled for outgoing relay - destination
+URLs are fixed in the nginx config and controlled by the administrator.
 
 Directives:
 
