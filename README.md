@@ -98,9 +98,7 @@ rtmp_auto_push directive.
 
 ```conf
 rtmp {
-
     server {
-
         listen 1935;
 
         chunk_size 4000;
@@ -231,9 +229,7 @@ rtmp {
 
             # Async notify about an flv recorded
             on_record_done http://localhost:8080/record_done;
-
         }
-
 
         # HLS
 
@@ -269,9 +265,7 @@ rtmp {
 
 # HTTP can be used for accessing RTMP stats
 http {
-
     server {
-
         listen      8080;
 
         # This URL provides RTMP statistics in XML
