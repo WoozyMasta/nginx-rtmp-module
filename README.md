@@ -316,6 +316,75 @@ rtmp_auto_push directive.
         }
     }
 
+### Dynamic push (multi-platform restream)
+
+Push a single stream to multiple platforms by passing stream keys as RTMP
+query args. No ffmpeg, no shell, no HTTP callbacks required.
+
+Client URL:
+
+    rtmp://your-server:1935/restream/live?yt=YOUTUBE_KEY&tw=TWITCH_KEY
+
+nginx.conf:
+
+    rtmp {
+        server {
+            listen 1935;
+
+            application restream {
+                live on;
+                record off;
+
+                # IP whitelist - only allow your encoder
+                allow publish 192.168.0.0/24;
+                deny  publish all;
+                deny  play    all;
+
+                # Map query arg names to platform RTMP base URLs
+                dynamic_push_arg yt    rtmp://a.rtmp.youtube.com/live2;
+                dynamic_push_arg tw    rtmp://live.twitch.tv/app;
+
+                # Reject publish if no known platform arg is present (optional)
+                dynamic_push_required off;
+
+                # Reject publish if any requested platform push fails (optional)
+                dynamic_push_strict off;
+
+                # Maximum stream key length accepted from client
+                dynamic_push_key_max_len 256;
+            }
+        }
+    }
+
+Note: Platforms using RTMPS (Facebook Live, Kick, TikTok) require TLS for
+outgoing connections, which is not supported by the push relay. Plain RTMP
+platforms listed above work out of the box.
+
+Directives:
+
+* `dynamic_push_arg <name> <rtmp://host/app> [nokey]` - map a query arg to a
+  platform. The base URL must end at the application level (`rtmp://host/app`);
+  the stream key comes from the client query arg. Multiple directives are
+  allowed. With `nokey`, the arg value is ignored and the local stream name is
+  used as the remote play path - useful for services that need no stream key:
+
+      dynamic_push_arg local rtmp://127.0.0.1:1936/live nokey;
+
+  Client activates it with any value: `?local=1`.
+
+* `dynamic_push_required on|off` - when `on`, reject publish if no configured
+  arg is present in the client URL. Default: `off`.
+
+* `dynamic_push_strict on|off` - when `on`, reject publish if any requested
+  platform push fails to connect. Default: `off`.
+
+* `dynamic_push_key_max_len <bytes>` - maximum length of a stream key accepted
+  from the client. Keys exceeding this or containing unsafe characters
+  (`://`, `?`, `&`, `%`, whitespace, control chars) are rejected.
+  Default: `512`.
+
+Security: the client can only supply stream keys - it cannot override the
+destination host. The upstream URLs are fixed in the nginx config.
 
 ### Multi-worker streaming example
 
