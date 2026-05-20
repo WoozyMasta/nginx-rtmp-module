@@ -28,7 +28,7 @@ RTMP_CORE_MODULES="                                         \
 RTMP_HTTP_MODULES=""
 RTMP_HTTP_SRCS=""
 
-if [ "${HTTP:-YES}" != "NO" ]; then
+if [ "${RTMP_HTTP_STATS:-YES}" != "NO" ]; then
 RTMP_HTTP_MODULES="                                         \
                 ngx_rtmp_stat_module                        \
                 ngx_rtmp_control_module                     \
@@ -141,4 +141,3 @@ else
 fi
 
 USE_OPENSSL=YES
-
