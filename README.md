@@ -372,9 +372,10 @@ destination host. The upstream URLs are fixed in the nginx config.
 
 ### Dynamic exec (conditional transcoding)
 
-Spawn an external process (e.g. ffmpeg for transcoding) **only when a specific
-query arg is present** in the publish URL. Each arg key is mapped to its own
-command — multiple keys mean multiple independent processes.
+Spawn an external process (e.g. ffmpeg for transcoding)
+**only when a specific query arg is present** in the publish URL.
+Each arg key is mapped to its own command -
+multiple keys mean multiple independent processes.
 
 Client URL:
 
@@ -407,9 +408,9 @@ application live {
 }
 ```
 
-Available variables in the command: `$name` (stream name), `$value` (matched
-arg value — the stream key), `$app` (application name), `$args` (full query
-string).
+Available variables in the command:
+`$name` (stream name), `$value` (matched arg value — the stream key),
+`$app` (application name), `$args` (full query string).
 
 Directive: `dynamic_exec_arg <key> <command> [arg ...]`  
 Context: `application`  
