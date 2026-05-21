@@ -13,6 +13,9 @@
 #include "ngx_rtmp_live_module.h"
 #include "ngx_rtmp_play_module.h"
 #include "ngx_rtmp_codec_module.h"
+#if !(NGX_WIN32)
+#include "ngx_rtmp_dynamic_exec_module.h"
+#endif
 
 
 static ngx_int_t ngx_rtmp_stat_init_process(ngx_cycle_t *cycle);
@@ -364,6 +367,14 @@ ngx_rtmp_stat_client(ngx_http_request_t *r, ngx_chain_t ***lll,
         NGX_RTMP_STAT_ES(&s->swf_url);
         NGX_RTMP_STAT_L("</swfurl>");
     }
+
+    if (s->relay) {
+        NGX_RTMP_STAT_L("<relay/>");
+    }
+
+    if (s->auto_pushed) {
+        NGX_RTMP_STAT_L("<auto_pushed/>");
+    }
 }
 
 
@@ -414,13 +425,19 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
     ngx_rtmp_live_stream_t         *stream;
     ngx_rtmp_codec_ctx_t           *codec;
     ngx_rtmp_live_ctx_t            *ctx;
-    ngx_rtmp_session_t             *s;
+    ngx_rtmp_session_t             *s, *pub_session;
     ngx_int_t                       n;
     ngx_uint_t                      nclients, total_nclients;
     u_char                          buf[NGX_INT_T_LEN];
     u_char                          bbuf[NGX_INT32_LEN];
     ngx_rtmp_stat_loc_conf_t       *slcf;
     u_char                         *cname;
+#if !(NGX_WIN32)
+    ngx_rtmp_dynamic_exec_ctx_t    *dectx;
+    ngx_rtmp_dynamic_exec_proc_t   *deproc;
+    ngx_uint_t                      m;
+    u_char                          pidbuf[NGX_INT32_LEN];
+#endif
 
     if (!lacf->live) {
         return;
@@ -456,6 +473,7 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
 
             nclients = 0;
             codec = NULL;
+            pub_session = NULL;
             for (ctx = stream->ctx; ctx; ctx = ctx->next, ++nclients) {
                 s = ctx->session;
                 if (slcf->stat & NGX_RTMP_STAT_CLIENTS) {
@@ -493,6 +511,7 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
                 }
                 if (ctx->publishing) {
                     codec = ngx_rtmp_get_module_ctx(s, ngx_rtmp_codec_module);
+                    pub_session = s;
                 }
             }
             total_nclients += nclients;
@@ -574,6 +593,38 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
 
                 NGX_RTMP_STAT_L("</meta>\r\n");
             }
+
+#if !(NGX_WIN32)
+            if (pub_session) {
+                dectx = ngx_rtmp_get_module_ctx(pub_session,
+                                                ngx_rtmp_dynamic_exec_module);
+                if (dectx && dectx->procs.nelts) {
+                    NGX_RTMP_STAT_L("<dynamic_exec>\r\n");
+                    deproc = dectx->procs.elts;
+                    for (m = 0; m < dectx->procs.nelts; m++) {
+                        NGX_RTMP_STAT_L("<proc>");
+                        if (deproc[m].rule) {
+                            NGX_RTMP_STAT_L("<arg>");
+                            NGX_RTMP_STAT_ES(&deproc[m].rule->arg_name);
+                            NGX_RTMP_STAT_L("</arg>");
+                            NGX_RTMP_STAT_L("<cmd>");
+                            NGX_RTMP_STAT_ES(&deproc[m].rule->cmd);
+                            NGX_RTMP_STAT_L("</cmd>");
+                        }
+                        NGX_RTMP_STAT_L("<pid>");
+                        NGX_RTMP_STAT(pidbuf, ngx_snprintf(pidbuf,
+                                      sizeof(pidbuf), "%i",
+                                      (ngx_int_t) deproc[m].pid) - pidbuf);
+                        NGX_RTMP_STAT_L("</pid>");
+                        if (deproc[m].active) {
+                            NGX_RTMP_STAT_L("<active/>");
+                        }
+                        NGX_RTMP_STAT_L("</proc>\r\n");
+                    }
+                    NGX_RTMP_STAT_L("</dynamic_exec>\r\n");
+                }
+            }
+#endif
 
             NGX_RTMP_STAT_L("<nclients>");
             NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf),

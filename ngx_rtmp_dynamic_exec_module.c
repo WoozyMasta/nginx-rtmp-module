@@ -8,6 +8,7 @@
 #include <ngx_core.h>
 #include "ngx_rtmp_cmd_module.h"
 #include "ngx_rtmp_eval.h"
+#include "ngx_rtmp_dynamic_exec_module.h"
 #include <stdlib.h>
 
 #ifdef NGX_LINUX
@@ -31,41 +32,6 @@ static char    *ngx_rtmp_dynamic_exec_merge_app_conf(ngx_conf_t *cf,
 static ngx_int_t ngx_rtmp_dynamic_exec_postconfiguration(ngx_conf_t *cf);
 static char    *ngx_rtmp_dynamic_exec_arg(ngx_conf_t *cf, ngx_command_t *cmd,
                     void *conf);
-
-
-typedef struct {
-    ngx_str_t    arg_name;
-    ngx_str_t    cmd;
-    ngx_array_t  args;
-} ngx_rtmp_dynamic_exec_rule_t;
-
-
-typedef struct {
-    ngx_array_t  rules;
-} ngx_rtmp_dynamic_exec_app_conf_t;
-
-
-#if !(NGX_WIN32)
-
-typedef struct {
-    ngx_pid_t         pid;
-    int               pipefd;
-    ngx_connection_t  dummy_conn;
-    ngx_event_t       read_evt;
-    ngx_event_t       write_evt;
-    ngx_log_t        *log;
-    unsigned          active:1;
-} ngx_rtmp_dynamic_exec_proc_t;
-
-
-typedef struct {
-    ngx_array_t  procs;
-    ngx_str_t    current_value;
-    u_char       name[NGX_RTMP_MAX_NAME];
-    u_char       args_str[NGX_RTMP_MAX_ARGS];
-} ngx_rtmp_dynamic_exec_ctx_t;
-
-#endif
 
 
 static ngx_command_t  ngx_rtmp_dynamic_exec_commands[] = {
@@ -548,6 +514,7 @@ ngx_rtmp_dynamic_exec_publish(ngx_rtmp_session_t *s, ngx_rtmp_publish_t *v)
 
         ngx_memzero(proc, sizeof(*proc));
         proc->pipefd = -1;
+        proc->rule   = &rule[i];
 
         ngx_rtmp_dynamic_exec_spawn(s, &rule[i], proc);
     }
