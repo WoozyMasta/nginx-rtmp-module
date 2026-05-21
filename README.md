@@ -1,48 +1,42 @@
 # NGINX-based Media Streaming Server
 
+More docs in [wiki](https://github.com/WoozyMasta/nginx-rtmp-module/wiki/Directives)
+
 ## nginx-rtmp-module
 
-### Project blog
+> [!NOTE]
+> This is a fork of
+> [Roman Arutyunyan's nginx-rtmp-module](https://github.com/arut/nginx-rtmp-module).
+>
+> This fork adds dynamic multi-platform push, RTMPS/TLS outgoing relay,
+> and `--without-http` build compatibility.  
+> All credit for the original work goes to Roman Arutyunyan.
 
-<http://nginx-rtmp.blogspot.com>
+## Original project links
 
-### Wiki manual
-
-<https://github.com/WoozyMasta/nginx-rtmp-module/wiki/Directives>
-
-### Google group
-
-<https://groups.google.com/group/nginx-rtmp>
-
-<https://groups.google.com/group/nginx-rtmp-ru> (Russian)
-
-### Donation page (Paypal etc)
-
-<http://arut.github.com/nginx-rtmp-module/>
+* Repo: <https://github.com/arut/nginx-rtmp-module>
+* Project blog <http://nginx-rtmp.blogspot.com>
+* Google group <https://groups.google.com/group/nginx-rtmp>
+* Google group (Russian) <https://groups.google.com/group/nginx-rtmp-ru>
+* Support the original author Roman Arutyunyan,
+  the creator of nginx-rtmp-module: <http://arut.github.com/nginx-rtmp-module/>
 
 ### Features
 
-* RTMP/HLS/MPEG-DASH live streaming
-* RTMP Video on demand FLV/MP4,
-  playing from local filesystem or HTTP
-* Stream relay support for distributed
-  streaming: push & pull models
+* RTMP/RTMPS/HLS/MPEG-DASH live streaming
+* RTMP/RTMPS Video on demand FLV/MP4, playing from local filesystem or HTTP
+* Stream relay support for distributed streaming: push & pull models
 * Recording streams in multiple FLVs
 * H264/AAC support
 * Online transcoding with FFmpeg
 * HTTP callbacks (publish/play/record/update etc)
 * Running external programs on certain events (exec)
 * HTTP control module for recording audio/video and dropping clients
-* Advanced buffering techniques
-  to keep memory allocations at a minimum
-  level for faster streaming and low
-  memory footprint
-* Proved to work with Wirecast, FMS, Wowza,
-  JWPlayer, FlowPlayer, StrobeMediaPlayback,
-  ffmpeg, avconv, rtmpdump, flvstreamer
-  and many more
-* Statistics in XML/XSL in machine- & human-
-  readable form
+* Advanced buffering techniques to keep memory allocations at a minimum
+  level for faster streaming and low memory footprint
+* Proved to work with Wirecast, FMS, Wowza, JWPlayer, FlowPlayer,
+  StrobeMediaPlayback, ffmpeg, avconv, rtmpdump, flvstreamer and many more
+* Statistics in XML/XSL in machine- & human-readable form
 * Linux/FreeBSD/MacOS/Windows
 
 ### Build
@@ -359,7 +353,7 @@ Directives:
   allowed. With `nokey`, the arg value is ignored and the local stream name is
   used as the remote play path - useful for services that need no stream key:
 
-  ``` txt
+  ```txt
       dynamic_push_arg local rtmp://127.0.0.1:1936/live nokey;
   ```
 
