@@ -8,8 +8,8 @@
 #define _NGX_RTMP_VERSION_H_INCLUDED_
 
 
-#define nginx_rtmp_version  1002000
-#define NGINX_RTMP_VERSION  "1.2.0"
+#define nginx_rtmp_version  1003000
+#define NGINX_RTMP_VERSION  "1.3.0"
 
 
 #endif /* _NGX_RTMP_VERSION_H_INCLUDED_ */

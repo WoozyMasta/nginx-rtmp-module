@@ -370,6 +370,51 @@ Directives:
 Security: the client can only supply stream keys - it cannot override the
 destination host. The upstream URLs are fixed in the nginx config.
 
+### Dynamic exec (conditional transcoding)
+
+Spawn an external process (e.g. ffmpeg for transcoding) **only when a specific
+query arg is present** in the publish URL. Each arg key is mapped to its own
+command — multiple keys mean multiple independent processes.
+
+Client URL:
+
+```txt
+rtmp://your-server:1935/live/stream?tw=TWITCH_KEY&kk=KICK_KEY
+```
+
+nginx.conf:
+
+```conf
+application live {
+    live on;
+    record off;
+
+    # Spawn ffmpeg only when ?tw=KEY is present
+    dynamic_exec_arg tw /usr/bin/ffmpeg
+        -loglevel warning
+        -i rtmp://127.0.0.1:1935/live/$name
+        -c:v libx264 -preset veryfast -b:v 5500k
+        -c:a aac -b:a 160k
+        -f flv rtmp://live.twitch.tv/app/$value;
+
+    # Separate ffmpeg only when ?kk=KEY is present
+    dynamic_exec_arg kk /usr/bin/ffmpeg
+        -loglevel warning
+        -i rtmp://127.0.0.1:1935/live/$name
+        -c:v libx264 -preset veryfast -b:v 3500k
+        -c:a aac -b:a 128k
+        -f flv rtmps://ingest.global-contribute.live-video.net/app/$value;
+}
+```
+
+Available variables in the command: `$name` (stream name), `$value` (matched
+arg value — the stream key), `$app` (application name), `$args` (full query
+string).
+
+Directive: `dynamic_exec_arg <key> <command> [arg ...]`  
+Context: `application`  
+Not supported on Windows.
+
 ### Multi-worker streaming example
 
 ```conf
